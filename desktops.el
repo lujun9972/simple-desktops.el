@@ -1,6 +1,8 @@
 (defvar desktops-configuration-alist nil
   "")
 
+(defvar desktops-previous-desktop-name nil)
+
 (defun desktops--set-current-desktop-name (deskto-name)
   (set-frame-parameter (selected-frame) 'desktops-current-desktop-name desktop-name))
 
@@ -23,8 +25,6 @@
 (defun desktops--resave ()
   (desktops-save (desktops--get-current-desktop-name) (current-window-configuration)))
 
-(add-hook 'window-configuration-change-hook #'desktops--resave t)
-
 (defun desktops-del (&optional desktop-name)
   (interactive (list (desktops--read-desktop-name desktops-configuration-alist)))
   (setq desktops-configuration-alist (assq-delete-all desktop-name desktops-configuration-alist)))
@@ -34,14 +34,14 @@
   (let ((current-configuration (current-window-configuration))
         (configuration (cdr (assoc desktop-name desktops-configuration-alist))))
     (desktops-save (desktops--get-current-desktop-name) current-configuration)
-    (desktops-save "previous" current-configuration)
+    (setq desktops-previous-desktop-name (desktops--get-current-desktop-name))
     (if (set-window-configuration configuration)
         (raise-frame (window-configuration-frame configuration)))
     (desktops--set-current-desktop-name desktop-name)))
 
 (defun desktops-shift ()
   (interactive)
-  (desktops-restore "previous"))
+  (desktops-restore desktops-previous-desktop-name))
 
 (defun desktops-popup-restore-menu (&optional configuration-alist)
   (interactive (list desktops-configuration-alist))
