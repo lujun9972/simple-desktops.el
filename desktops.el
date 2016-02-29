@@ -1,6 +1,11 @@
 (defvar desktops-configuration-alist nil
   "")
-(defvar desktops-current-desktop-name nil)
+
+(defun desktops--set-current-desktop-name (deskto-name)
+  (set-frame-parameter (selected-frame) 'desktops-current-desktop-name desktop-name))
+
+(defun desktops--get-current-desktop-name ()
+  (frame-parameter (selected-frame) 'desktops-current-desktop-name))
 
 (defun desktops--read-desktop-name (&optional already-exist-desktops allow-new)
   (completing-read "desktop name: " already-exist-desktops nil (not allow-new)))
@@ -13,7 +18,12 @@
     (if (assoc desktop-name desktops-configuration-alist)
         (setf (cdr (assoc desktop-name desktops-configuration-alist)) window-configuration)
       (push (cons desktop-name window-configuration) desktops-configuration-alist))
-    (setq desktops-current-desktop-name desktop-name)))
+    (desktops--set-current-desktop-name desktop-name)))
+
+(defun desktops--resave ()
+  (desktops-save (desktops--get-current-desktop-name) (current-window-configuration)))
+
+(add-hook 'window-configuration-change-hook #'desktops--resave t)
 
 (defun desktops-del (&optional desktop-name)
   (interactive (list (desktops--read-desktop-name desktops-configuration-alist)))
@@ -21,13 +31,17 @@
 
 (defun desktops-restore (&optional desktop-name)
   (interactive (list (desktops--read-desktop-name desktops-configuration-alist)))
-  (let ((previous-configuration (current-window-configuration))
+  (let ((current-configuration (current-window-configuration))
         (configuration (cdr (assoc desktop-name desktops-configuration-alist))))
+    (desktops-save (desktops--get-current-desktop-name) current-configuration)
+    (desktops-save "previous" current-configuration)
     (if (set-window-configuration configuration)
         (raise-frame (window-configuration-frame configuration)))
-    (desktops-save desktops-current-desktop-name previous-configuration)
-    (desktops-save "previous" previous-configuration)
-    (setq desktops-current-desktop-name desktop-name)))
+    (desktops--set-current-desktop-name desktop-name)))
+
+(defun desktops-shift ()
+  (interactive)
+  (desktops-restore "previous"))
 
 (defun desktops-popup-restore-menu (&optional configuration-alist)
   (interactive (list desktops-configuration-alist))
