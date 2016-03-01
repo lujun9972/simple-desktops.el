@@ -14,6 +14,7 @@
 
 
 (defun sd-save (&optional desktop-name window-configuration)
+  "Save WINDOW-CONFIGURATION as DESKTOP-NAME"
   (interactive (list (sd--read-desktop-name sd-configuration-alist t)))
   (let ((window-configuration (or window-configuration
                                   (current-window-configuration))))
@@ -23,19 +24,27 @@
     (sd--set-current-desktop-name desktop-name)))
 
 (defun sd--resave ()
+  "Save current-window-configuration as current-desktop-name"
   (sd-save (sd--get-current-desktop-name) (current-window-configuration)))
 
 (defun sd-del (&optional desktop-name)
+  "Delete DESKTOP-NAME related window-configuration"
   (interactive (list (sd--read-desktop-name sd-configuration-alist)))
   (setq sd-configuration-alist (assq-delete-all desktop-name sd-configuration-alist)))
 
+(defun sd--valid-window-configuration-p (configuration)
+  "Is CONFIGURATION is a valid window-configuration which means the related frame is alive"
+  (and (window-configuration-p configuration)
+       (frame-live-p (window-configuration-frame configuration))))
+
 (defun sd-restore (&optional desktop-name)
+  "Restore DESKTOP-NAME related window-configuration"
   (interactive (list (sd--read-desktop-name sd-configuration-alist)))
   (let ((current-configuration (current-window-configuration))
         (configuration (cdr (assoc desktop-name sd-configuration-alist))))
-    (if (frame-live-p (window-configuration-frame configuration)) 
+    (if (sd--valid-window-configuration-p configuration) 
         (progn
-          (sd-save (sd--get-current-desktop-name) current-configuration)
+          (sd--resave)
           (setq sd-previous-desktop-name (sd--get-current-desktop-name))
           (set-window-configuration configuration)
           (raise-frame (window-configuration-frame configuration))
@@ -44,10 +53,12 @@
       (warn "desktop:%s does not exist anymore" desktop-name))))
 
 (defun sd-shift ()
+  "Shift to previous window-configuration"
   (interactive)
   (sd-restore sd-previous-desktop-name))
 
 (defun sd-popup-restore-menu (&optional configuration-alist)
+  "Popup a menu to let user select which desktop want to be restored"
   (interactive (list sd-configuration-alist))
   (let* ((desktop-names (mapcar #'car configuration-alist))
          (menu-items (mapcar (lambda (name)
